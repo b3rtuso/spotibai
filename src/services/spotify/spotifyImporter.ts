@@ -27,7 +27,7 @@ export class SpotifyImporter {
       throw new Error('Invalid Spotify playlist URL. Please make sure the link is in the format: https://open.spotify.com/playlist/...');
     }
 
-    // Attempt fetching via Vite dev proxy first, then direct
+    // Attempt fetching via serverless endpoint / proxy, then query fallback
     let html = '';
     try {
       const res = await fetch(`/api/spotify-embed/playlist/${playlistId}`);
@@ -36,6 +36,17 @@ export class SpotifyImporter {
       }
     } catch {
       // Fallback
+    }
+
+    if (!html) {
+      try {
+        const queryRes = await fetch(`/api/spotify-embed?id=${playlistId}`);
+        if (queryRes.ok) {
+          html = await queryRes.text();
+        }
+      } catch {
+        // Fallback
+      }
     }
 
     if (!html) {

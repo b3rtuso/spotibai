@@ -2,6 +2,10 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/api/spotify-embed/playlist/(.*)",
+      "destination": "/api/spotify-embed?id=$1"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

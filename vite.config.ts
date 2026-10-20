@@ -78,6 +78,48 @@ function youtubeResolverPlugin() {
           res.end(JSON.stringify({ error: err?.message || 'Internal error' }));
         }
       });
+
+      server.middlewares.use('/api/spotify-embed', async (req: any, res: any) => {
+        try {
+          let id: string | null = null;
+          const url = new URL(req.url, 'http://localhost');
+          if (url.searchParams.get('id')) {
+            id = url.searchParams.get('id');
+          } else {
+            const m = req.url.match(/playlist[/:]([a-zA-Z0-9]+)/);
+            if (m) id = m[1];
+          }
+
+          if (!id) {
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Missing Spotify playlist ID' }));
+            return;
+          }
+
+          const response = await fetch(`https://open.spotify.com/embed/playlist/${id}`, {
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            },
+          });
+
+          if (!response.ok) {
+            res.statusCode = response.status;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Failed to fetch Spotify embed' }));
+            return;
+          }
+
+          const html = await response.text();
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.end(html);
+        } catch (err: any) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: err?.message || 'Internal error' }));
+        }
+      });
     },
   };
 }
