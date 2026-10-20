@@ -95,19 +95,27 @@ export class SpotifyImporter {
     for (let i = 0; i < rawTracks.length; i++) {
       const item = rawTracks[i];
       const trackId = `spotify-${playlistId}-${i}-${Date.now()}`;
-      const title = item.title || 'Unknown Title';
-      const artist = item.subtitle || 'Unknown Artist';
+      const rawTitle = item.title || 'Unknown Title';
+      const rawArtist = item.subtitle || 'Unknown Artist';
+
+      // Clean Spotify metadata noise (e.g. "- Remastered", "(2024 Remaster)", "(Live)") so the actual song is matched
+      const cleanTitle = rawTitle
+        .replace(/\s*-\s*(?:.*Remaster.*|Live|Mono|Stereo|Radio Edit|Bonus Track).*$/i, '')
+        .replace(/\s*\((?:.*Remaster.*|Deluxe|Anniversary|Radio Edit|Single Version)[^)]*\)/gi, '')
+        .replace(/\s*\[(?:.*Remaster.*|Explicit|Deluxe)[^\]]*\]/gi, '')
+        .trim();
+
       const duration = Math.round((item.duration || 180000) / 1000);
 
       const trackObj: Track = {
         id: trackId,
-        title,
-        artist,
+        title: cleanTitle || rawTitle,
+        artist: rawArtist,
         album: playlistTitle,
         duration,
         artworkUrl: coverUrl,
         audioUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(
-          `${title} ${artist}`
+          `${rawArtist} - ${cleanTitle || rawTitle}`
         )}`,
         sourceType: 'youtube',
         dateAdded: Date.now(),

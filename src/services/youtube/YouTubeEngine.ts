@@ -21,6 +21,9 @@ export class YouTubeEngine {
   public currentVideoId: string | null = null;
   private videoCache = new Map<string, string>();
   private isPlayingDesired = false;
+  private currentCandidates: string[] = [];
+  private candidateIndex = 0;
+  private backgroundResumeAttempted = false;
 
   public onTimeUpdate?: (currentTime: number, duration: number) => void;
   public onPlayStateChange?: (isPlaying: boolean) => void;
@@ -125,33 +128,49 @@ export class YouTubeEngine {
             // 1 = PLAYING, 2 = PAUSED, 0 = ENDED
             if (state === 1) {
               this.isPlayingDesired = true;
+              this.backgroundResumeAttempted = false;
               this.startTimeTracking();
               if (this.onPlayStateChange) this.onPlayStateChange(true);
             } else if (state === 2) {
-              // If the browser backgrounded the tab or throttled iframe execution while playback was active:
-              if (this.isPlayingDesired && typeof document !== 'undefined' && document.hidden) {
-                // Attempt immediate resume and do NOT broadcast false to playerStore
+              // If the browser backgrounded the tab while playback was active, attempt resume ONCE without loop
+              if (this.isPlayingDesired && typeof document !== 'undefined' && document.hidden && !this.backgroundResumeAttempted) {
+                this.backgroundResumeAttempted = true;
                 setTimeout(() => {
                   if (this.isPlayingDesired && this.player && typeof this.player.playVideo === 'function') {
                     try {
                       this.player.playVideo();
                     } catch {}
                   }
-                }, 80);
+                }, 300);
                 return;
               }
               this.isPlayingDesired = false;
+              this.backgroundResumeAttempted = false;
               this.stopTimeTracking();
               if (this.onPlayStateChange) this.onPlayStateChange(false);
             } else if (state === 0) {
               this.isPlayingDesired = false;
+              this.backgroundResumeAttempted = false;
               this.stopTimeTracking();
               if (this.onPlayStateChange) this.onPlayStateChange(false);
               if (this.onTrackEnded) this.onTrackEnded();
             }
           },
           onError: (e: any) => {
-            console.warn('YouTube Player notice:', e);
+            const errCode = e?.data;
+            console.warn(`YouTube Player error ${errCode} on video ID: ${this.currentVideoId}`);
+            this.isPlayingDesired = false;
+            this.backgroundResumeAttempted = false;
+
+            // Auto-fallback if video is blocked from embedding (101, 150) or unavailable (100, 2)
+            if (this.currentCandidates.length > 0 && this.candidateIndex < this.currentCandidates.length - 1) {
+              this.candidateIndex++;
+              const nextId = this.currentCandidates[this.candidateIndex];
+              console.log(`Auto-fallback to alternative candidate [${this.candidateIndex}]: ${nextId}`);
+              this.loadVideoById(nextId);
+              return;
+            }
+
             if (this.onError) this.onError(e);
           },
         },
@@ -179,6 +198,13 @@ export class YouTubeEngine {
         const data = await res.json();
         if (data?.videoId) {
           this.videoCache.set(normalized, data.videoId);
+          if (Array.isArray(data.candidates) && data.candidates.length > 0) {
+            this.currentCandidates = data.candidates;
+            this.candidateIndex = 0;
+          } else {
+            this.currentCandidates = [data.videoId];
+            this.candidateIndex = 0;
+          }
           return data.videoId;
         }
       }
@@ -225,12 +251,19 @@ export class YouTubeEngine {
   }
 
   public async searchAndPlay(query: string): Promise<string | null> {
-    const audioQuery = query.toLowerCase().includes('audio') || query.toLowerCase().includes('lyrics')
-      ? query
-      : `${query} audio`;
+    const clean = query
+      .replace(/\s*-\s*(?:Remastered|Live|Mono|Stereo|Radio Edit|Bonus Track).*$/i, '')
+      .replace(/\s*\((?:Remastered|Deluxe|Anniversary|Radio Edit|Single Version)[^)]*\)/gi, '')
+      .replace(/\s*\[(?:Remastered|Explicit|Deluxe)[^\]]*\]/gi, '')
+      .trim();
+
+    const audioQuery = clean.toLowerCase().includes('audio') || clean.toLowerCase().includes('official')
+      ? clean
+      : `${clean} official audio`;
+
     let videoId = await this.resolveVideoId(audioQuery);
-    if (!videoId && audioQuery !== query) {
-      videoId = await this.resolveVideoId(query);
+    if (!videoId && audioQuery !== clean) {
+      videoId = await this.resolveVideoId(clean);
     }
     if (videoId) {
       this.loadVideoById(videoId);
@@ -245,11 +278,16 @@ export class YouTubeEngine {
    * Searches for and plays the instrumental / karaoke beat version of the track at the exact current second
    */
   public async searchAndPlayInstrumental(query: string, startTime = 0): Promise<string | null> {
+    const clean = query
+      .replace(/\s*-\s*(?:Remastered|Live|Mono|Stereo|Radio Edit|Bonus Track).*$/i, '')
+      .replace(/\s*\((?:Remastered|Deluxe|Anniversary|Radio Edit|Single Version)[^)]*\)/gi, '')
+      .replace(/\s*\[(?:Remastered|Explicit|Deluxe)[^\]]*\]/gi, '')
+      .trim();
+
     const instrumentalQueries = [
-      `${query} instrumental`,
-      `${query} karaoke backing track`,
-      `${query} beat instrumental`,
-      `${query} karaoke`,
+      `${clean} instrumental official`,
+      `${clean} karaoke backing track`,
+      `${clean} instrumental`,
     ];
     for (const q of instrumentalQueries) {
       const vid = await this.resolveVideoId(q);

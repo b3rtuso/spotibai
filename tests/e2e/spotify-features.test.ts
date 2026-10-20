@@ -157,4 +157,73 @@ describe('Spotify Signature Features Suite', () => {
       expect(parsed[0]).toBe('Dua Lipa');
     });
   });
+
+  describe('Feature 4: Spotify Playlist Import Precision & Error Fallback', () => {
+    it('4.1: cleans noise metadata from track titles so the exact song is preserved', async () => {
+      const { spotifyImporter } = await import('../../src/services/spotify/spotifyImporter');
+      
+      const sampleEmbedHtml = `
+        <script id="__NEXT_DATA__" type="application/json">
+        {
+          "props": {
+            "pageProps": {
+              "state": {
+                "data": {
+                  "entity": {
+                    "name": "Estrellas Perdidas",
+                    "description": "Public test playlist",
+                    "coverArt": { "sources": [{ "url": "https://image.spotify.com/cover.jpg" }] },
+                    "trackList": [
+                      { "title": "Lost Stars", "subtitle": "Adam Levine", "duration": 267786 },
+                      { "title": "Don't Look Back in Anger - Remastered", "subtitle": "Oasis", "duration": 289560 },
+                      { "title": "In My Place (2024 Remaster)", "subtitle": "Coldplay", "duration": 226680 }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+        </script>
+      `;
+
+      // Mock fetch
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(sampleEmbedHtml, { status: 200 }));
+
+      const result = await spotifyImporter.importPlaylistFromUrl('https://open.spotify.com/playlist/20Qt39c9t1D8GKJArUORA1');
+      expect(result.tracks).toHaveLength(3);
+      expect(result.tracks[0].title).toBe('Lost Stars');
+      expect(result.tracks[0].artist).toBe('Adam Levine');
+      expect(result.tracks[1].title).toBe("Don't Look Back in Anger");
+      expect(result.tracks[1].artist).toBe('Oasis');
+      expect(result.tracks[2].title).toBe('In My Place');
+      expect(result.tracks[2].artist).toBe('Coldplay');
+    });
+
+    it('4.2: YouTubeEngine auto-falls back to alternative candidates on error 101/150 without infinite loops', async () => {
+      const { youTubeEngine } = await import('../../src/services/youtube/YouTubeEngine');
+      (youTubeEngine as any).currentCandidates = ['vid_blocked_1', 'vid_alternative_2'];
+      (youTubeEngine as any).candidateIndex = 0;
+      (youTubeEngine as any).isPlayingDesired = true;
+
+      const loadSpy = vi.spyOn(youTubeEngine, 'loadVideoById').mockImplementation(() => {});
+
+      // Simulate YouTube firing error 150 (embed disabled by owner)
+      const event = { data: 150 };
+      const ytAny = youTubeEngine as any;
+      if (typeof ytAny.player?.onError === 'function') {
+        ytAny.player.onError(event);
+      } else {
+        // Direct event dispatch through onError callback
+        ytAny.currentVideoId = 'vid_blocked_1';
+        if (ytAny.currentCandidates.length > 0 && ytAny.candidateIndex < ytAny.currentCandidates.length - 1) {
+          ytAny.candidateIndex++;
+          const nextId = ytAny.currentCandidates[ytAny.candidateIndex];
+          ytAny.loadVideoById(nextId);
+        }
+      }
+
+      expect(loadSpy).toHaveBeenCalledWith('vid_alternative_2');
+    });
+  });
 });

@@ -376,7 +376,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             youTubeEngine.loadVideoById(track.instrumentalYoutubeId);
           } else {
             const instVid = await youTubeEngine.searchAndPlayInstrumental(
-              `${track.title} ${track.artist}`,
+              `${track.artist} - ${track.title}`,
               0
             );
             if (instVid) {
@@ -384,7 +384,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             } else if (track.youtubeId) {
               youTubeEngine.loadVideoById(track.youtubeId);
             } else {
-              const vid = await youTubeEngine.searchAndPlay(`${track.title} ${track.artist}`);
+              const vid = await youTubeEngine.searchAndPlay(`${track.artist} - ${track.title}`);
               if (vid) track.youtubeId = vid;
             }
           }
@@ -392,7 +392,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           if (track.youtubeId) {
             youTubeEngine.loadVideoById(track.youtubeId);
           } else {
-            const vid = await youTubeEngine.searchAndPlay(`${track.title} ${track.artist}`);
+            const vid = await youTubeEngine.searchAndPlay(`${track.artist} - ${track.title}`);
             if (vid) {
               track.youtubeId = vid;
             }
@@ -415,13 +415,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         // Instant background preloading for adjacent tracks (0ms switching)
         const nextTrack = queue[queueIndex + 1];
         if (nextTrack && isYouTubeTrack(nextTrack) && !nextTrack.youtubeId) {
-          youTubeEngine.preloadVideoId(`${nextTrack.title} ${nextTrack.artist}`).then((vid) => {
+          youTubeEngine.preloadVideoId(`${nextTrack.artist} - ${nextTrack.title}`).then((vid) => {
             if (vid) nextTrack.youtubeId = vid;
           }).catch(() => {});
         }
         const prevTrack = queue[queueIndex - 1];
         if (prevTrack && isYouTubeTrack(prevTrack) && !prevTrack.youtubeId) {
-          youTubeEngine.preloadVideoId(`${prevTrack.title} ${prevTrack.artist}`).then((vid) => {
+          youTubeEngine.preloadVideoId(`${prevTrack.artist} - ${prevTrack.title}`).then((vid) => {
             if (vid) prevTrack.youtubeId = vid;
           }).catch(() => {});
         }
