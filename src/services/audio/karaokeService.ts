@@ -1,5 +1,7 @@
 import { Track } from '../../types';
 
+const API_BASE = (import.meta.env.VITE_KARAOKE_API_URL || '').replace(/\/$/, '');
+
 export interface KaraokeStems {
   trackId: string;
   vocalsUrl: string;
@@ -19,16 +21,17 @@ export class KaraokeService {
     }
 
     try {
-      const res = await fetch(`/api/karaoke/status/${encodeURIComponent(trackId)}`, {
+      const res = await fetch(`${API_BASE}/api/karaoke/status/${encodeURIComponent(trackId)}`, {
         signal: AbortSignal.timeout(2500),
       });
       if (res.ok) {
         const data = await res.json();
         if (data.ready && data.vocals && data.instrumental) {
+          const resolveUrl = (url: string) => url.startsWith('http') ? url : `${API_BASE}${url}`;
           const stems: KaraokeStems = {
             trackId,
-            vocalsUrl: data.vocals,
-            instrumentalUrl: data.instrumental,
+            vocalsUrl: resolveUrl(data.vocals),
+            instrumentalUrl: resolveUrl(data.instrumental),
             cached: true,
           };
           this.stemsCache.set(trackId, stems);
@@ -73,7 +76,7 @@ export class KaraokeService {
     if (onProgress) onProgress('Separating vocals from instrumental with Demucs AI...');
 
     try {
-      const res = await fetch('/api/karaoke/separate', {
+      const res = await fetch(`${API_BASE}/api/karaoke/separate`, {
         method: 'POST',
         body: formData,
         signal: AbortSignal.timeout(120000), // Demucs separation can take 15-45s depending on track length
@@ -89,10 +92,11 @@ export class KaraokeService {
         throw new Error('Invalid stem response from separation backend');
       }
 
+      const resolveUrl = (url: string) => url.startsWith('http') ? url : `${API_BASE}${url}`;
       const stems: KaraokeStems = {
         trackId: track.id,
-        vocalsUrl: data.vocals,
-        instrumentalUrl: data.instrumental,
+        vocalsUrl: resolveUrl(data.vocals),
+        instrumentalUrl: resolveUrl(data.instrumental),
         cached: Boolean(data.cached),
       };
 
