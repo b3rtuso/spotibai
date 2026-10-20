@@ -225,5 +225,28 @@ describe('Spotify Signature Features Suite', () => {
 
       expect(loadSpy).toHaveBeenCalledWith('vid_alternative_2');
     });
+
+    it('4.3: prioritizes actual studio audio and topic tracks over music videos (MVs)', async () => {
+      // Mock /api/yt-search response returning studio audio ahead of MV
+      const mockSearchPayload = {
+        videoId: 'vid_studio_audio_1',
+        candidates: ['vid_studio_audio_1', 'vid_lyric_video_2', 'vid_mv_3'],
+      };
+
+      vi.spyOn(globalThis, 'fetch').mockImplementationOnce(async () => {
+        return new Response(JSON.stringify(mockSearchPayload), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      });
+
+      const { youTubeEngine } = await import('../../src/services/youtube/YouTubeEngine');
+      const loadSpy = vi.spyOn(youTubeEngine, 'loadVideoById').mockImplementation(() => {});
+
+      const resolved = await youTubeEngine.searchAndPlay('The Weeknd - Blinding Lights');
+      expect(resolved).toBe('vid_studio_audio_1');
+      expect(loadSpy).toHaveBeenCalledWith('vid_studio_audio_1');
+      expect((youTubeEngine as any).currentCandidates).toEqual(['vid_studio_audio_1', 'vid_lyric_video_2', 'vid_mv_3']);
+    });
   });
 });

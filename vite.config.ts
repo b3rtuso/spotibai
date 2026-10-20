@@ -38,15 +38,24 @@ function youtubeResolverPlugin() {
                   gl: 'US',
                 },
               },
-              query: cleanQuery.toLowerCase().includes('audio') || cleanQuery.toLowerCase().includes('official')
+              query: cleanQuery.toLowerCase().includes('audio')
                 ? cleanQuery
-                : `${cleanQuery} official audio`,
+                : `${cleanQuery} audio`,
             }),
           });
 
           if (response.ok) {
             const data: any = await response.json();
             const candidates: Array<{ vid: string; title: string; channel: string; score: number }> = [];
+
+            // Parse artist and title from cleanQuery ("Artist - Title")
+            let artistPart = '';
+            let titlePart = cleanQuery.toLowerCase();
+            if (cleanQuery.includes(' - ')) {
+              const parts = cleanQuery.split(' - ');
+              artistPart = parts[0].trim().toLowerCase();
+              titlePart = parts.slice(1).join(' - ').trim().toLowerCase();
+            }
 
             const sections =
               data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
@@ -57,29 +66,95 @@ function youtubeResolverPlugin() {
                   const vid = item.videoRenderer.videoId;
                   const vTitle = item.videoRenderer.title?.runs?.[0]?.text || '';
                   const channel = item.videoRenderer.ownerText?.runs?.[0]?.text || '';
+                  const snippetStr = JSON.stringify(item.videoRenderer.detailedMetadataSnippets || '').toLowerCase();
 
                   const lowerTitle = vTitle.toLowerCase();
                   const lowerChannel = channel.toLowerCase();
                   const lowerQuery = cleanQuery.toLowerCase();
 
                   let score = 0;
-                  const queryWords = lowerQuery
-                    .split(/\s+/)
-                    .filter((w) => w.length > 2 && w !== 'audio' && w !== 'official');
-                  for (const word of queryWords) {
-                    if (lowerTitle.includes(word)) score += 3;
-                    if (lowerChannel.includes(word)) score += 2;
+
+                  // Title matching - highest priority
+                  if (titlePart) {
+                    if (lowerTitle.includes(titlePart)) {
+                      score += 35;
+                    } else {
+                      const tWords = titlePart.split(/\s+/).filter((w) => w.length > 1);
+                      let matchCount = 0;
+                      for (const w of tWords) {
+                        if (lowerTitle.includes(w)) matchCount++;
+                      }
+                      if (tWords.length > 0 && matchCount === tWords.length) {
+                        score += 25;
+                      } else if (matchCount > 0) {
+                        score += matchCount * 5;
+                      } else {
+                        score -= 40;
+                      }
+                    }
                   }
 
-                  if (lowerTitle.includes('official') || lowerTitle.includes('audio') || lowerChannel.includes('topic')) {
-                    score += 5;
+                  // Artist matching: reward each matched artist word
+                  if (artistPart) {
+                    const aWords = artistPart.split(/[,&]+|\s+/).map((w) => w.trim()).filter((w) => w.length > 2);
+                    let aMatch = 0;
+                    for (const w of aWords) {
+                      if (lowerTitle.includes(w) || lowerChannel.includes(w)) {
+                        aMatch++;
+                        score += 6;
+                      }
+                    }
+                    if (aMatch === 0) {
+                      score -= 30;
+                    }
                   }
-                  if (lowerTitle.includes('cover') && !lowerQuery.includes('cover')) score -= 15;
-                  if (lowerTitle.includes('karaoke') || lowerTitle.includes('instrumental')) score -= 10;
-                  if (lowerTitle.includes('remix') && !lowerQuery.includes('remix')) score -= 8;
-                  if (lowerTitle.includes('parody') || lowerTitle.includes('reaction') || lowerTitle.includes('review')) {
-                    score -= 20;
+
+                  // 1. YouTube Music / Label Delivery (100% Studio Audio)
+                  const isProvided = snippetStr.includes('provided to youtube') || snippetStr.includes('auto-generated');
+                  if (isProvided) {
+                    score += 30;
                   }
+                  if (lowerChannel.endsWith('- topic') || lowerChannel.includes('topic')) {
+                    score += 25;
+                  }
+
+                  // 2. Pure Audio indicators
+                  const isAudio = /official audio|\(audio\)|\[audio\]|\baudio\b/i.test(vTitle);
+                  if (isAudio) {
+                    score += 20;
+                  }
+
+                  // 3. Lyrics (Uses exact studio track, zero MV dialogue/acting)
+                  const isLyric = /official lyric video|\(lyrics\)|\blyrics\b|\blyric\b/i.test(vTitle);
+                  if (isLyric) {
+                    score += 15;
+                  }
+
+                  // 4. PENALIZE MV (Music Video) & Film cuts strictly (user requirement: use actual songs and not the mv one)
+                  const isMV =
+                    /\b(music video|official (?:4k\s*|hd\s*)?video|m\/?v|short film|film|trailer|teaser)\b/i.test(vTitle) ||
+                    /\((?:official\s+)?video\)/i.test(vTitle) ||
+                    /\[(?:official\s+)?video\]/i.test(vTitle) ||
+                    /\((?:official\s+)?mv\)/i.test(vTitle) ||
+                    /\[(?:official\s+)?mv\]/i.test(vTitle);
+                  if (isMV) {
+                    score -= 45;
+                  }
+
+                  // If title has generic 'video' without 'audio' or 'lyric'
+                  if (lowerTitle.includes('video') && !isAudio && !isLyric) {
+                    score -= 25;
+                  }
+
+                  // 5. Penalties for partial cuts, loops, slowed, covers, live, etc.
+                  if (/\b(only|without|part|cut|verse)\b/i.test(vTitle)) score -= 30;
+                  if (/\b(1\s*hour|10\s*hours|loop|extended\s*mix)\b/i.test(vTitle)) score -= 30;
+                  if (lowerTitle.includes('cover') && !lowerQuery.includes('cover')) score -= 30;
+                  if (lowerTitle.includes('parody') || lowerTitle.includes('reaction') || lowerTitle.includes('review')) score -= 40;
+                  if (lowerTitle.includes('live') && !lowerQuery.includes('live')) score -= 25;
+                  if (lowerTitle.includes('karaoke') || lowerTitle.includes('instrumental')) score -= 20;
+                  if (lowerTitle.includes('remix') && !lowerQuery.includes('remix')) score -= 15;
+                  if (/\b(slowed|reverb|sped up|speed up|nightcore|8d|bass boosted|extravaganza|mashup)\b/i.test(vTitle)) score -= 30;
 
                   candidates.push({ vid, title: vTitle, channel, score });
                 }
@@ -116,16 +191,29 @@ function youtubeResolverPlugin() {
           ];
           for (const inst of INVIDIOUS) {
             try {
-              const invRes = await fetch(`${inst}/api/v1/search?q=${encodeURIComponent(cleanQuery)}&type=video`, {
+              const invQuery = cleanQuery.toLowerCase().includes('audio') ? cleanQuery : `${cleanQuery} audio`;
+              const invRes = await fetch(`${inst}/api/v1/search?q=${encodeURIComponent(invQuery)}&type=video`, {
                 signal: AbortSignal.timeout(3000),
               });
               if (invRes.ok) {
                 const invData = await invRes.json();
-                if (Array.isArray(invData) && invData[0]?.videoId) {
-                  const alts = invData.slice(0, 4).map((d: any) => d.videoId);
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ videoId: invData[0].videoId, candidates: alts }));
-                  return;
+                if (Array.isArray(invData)) {
+                  const nonMvCandidates = invData
+                    .filter((d: any) => d && d.videoId)
+                    .sort((a: any, b: any) => {
+                      const aMv = /\b(music video|official (?:4k\s*|hd\s*)?video|mv)\b/i.test(a.title || '');
+                      const bMv = /\b(music video|official (?:4k\s*|hd\s*)?video|mv)\b/i.test(b.title || '');
+                      if (aMv && !bMv) return 1;
+                      if (!aMv && bMv) return -1;
+                      return 0;
+                    });
+
+                  if (nonMvCandidates.length > 0) {
+                    const alts = nonMvCandidates.slice(0, 5).map((d: any) => d.videoId);
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ videoId: nonMvCandidates[0].videoId, candidates: alts }));
+                    return;
+                  }
                 }
               }
             } catch {}

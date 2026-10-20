@@ -252,14 +252,14 @@ export class YouTubeEngine {
 
   public async searchAndPlay(query: string): Promise<string | null> {
     const clean = query
-      .replace(/\s*-\s*(?:Remastered|Live|Mono|Stereo|Radio Edit|Bonus Track).*$/i, '')
-      .replace(/\s*\((?:Remastered|Deluxe|Anniversary|Radio Edit|Single Version)[^)]*\)/gi, '')
-      .replace(/\s*\[(?:Remastered|Explicit|Deluxe)[^\]]*\]/gi, '')
+      .replace(/\s*-\s*(?:.*Remaster.*|Live|Mono|Stereo|Radio Edit|Bonus Track).*$/i, '')
+      .replace(/\s*\((?:.*Remaster.*|Deluxe|Anniversary|Radio Edit|Single Version)[^)]*\)/gi, '')
+      .replace(/\s*\[(?:.*Remaster.*|Explicit|Deluxe)[^\]]*\]/gi, '')
       .trim();
 
-    const audioQuery = clean.toLowerCase().includes('audio') || clean.toLowerCase().includes('official')
+    const audioQuery = clean.toLowerCase().includes('audio')
       ? clean
-      : `${clean} official audio`;
+      : `${clean} audio`;
 
     let videoId = await this.resolveVideoId(audioQuery);
     if (!videoId && audioQuery !== clean) {
@@ -279,9 +279,9 @@ export class YouTubeEngine {
    */
   public async searchAndPlayInstrumental(query: string, startTime = 0): Promise<string | null> {
     const clean = query
-      .replace(/\s*-\s*(?:Remastered|Live|Mono|Stereo|Radio Edit|Bonus Track).*$/i, '')
-      .replace(/\s*\((?:Remastered|Deluxe|Anniversary|Radio Edit|Single Version)[^)]*\)/gi, '')
-      .replace(/\s*\[(?:Remastered|Explicit|Deluxe)[^\]]*\]/gi, '')
+      .replace(/\s*-\s*(?:.*Remaster.*|Live|Mono|Stereo|Radio Edit|Bonus Track).*$/i, '')
+      .replace(/\s*\((?:.*Remaster.*|Deluxe|Anniversary|Radio Edit|Single Version)[^)]*\)/gi, '')
+      .replace(/\s*\[(?:.*Remaster.*|Explicit|Deluxe)[^\]]*\]/gi, '')
       .trim();
 
     const instrumentalQueries = [
