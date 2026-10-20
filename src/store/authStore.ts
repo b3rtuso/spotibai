@@ -108,10 +108,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
+    try {
+      if (typeof window !== 'undefined') {
+        const ps = (window as any).__spotibai_playerStore?.getState?.();
+        if (ps && ps.isPlaying) {
+          ps.togglePlay();
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     set({
       user: null,
       isAuthenticated: false,
       isAccountMenuOpen: false,
+      isAuthModalOpen: true,
+      authMode: 'login',
     });
     persistAuth(null, false);
   },

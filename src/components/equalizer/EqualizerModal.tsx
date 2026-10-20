@@ -232,14 +232,14 @@ export const EqualizerModal: React.FC = () => {
             return (
               <div key={freq} className="flex flex-col items-center gap-2 h-48 justify-between">
                 {/* dB display */}
-                <span className="text-[10px] font-mono font-medium text-neutral-400">
-                  {gain > 0 ? `+${gain}` : gain}
+                <span className={`text-[10px] font-mono font-bold ${gain !== 0 ? 'text-spotify-green' : 'text-neutral-400'}`}>
+                  {gain > 0 ? `+${gain}dB` : `${gain}dB`}
                 </span>
 
                 {/* Vertical Range Slider */}
                 <div className="relative flex items-center justify-center h-32 w-6">
                   {/* Center line (0dB) */}
-                  <div className="absolute w-3 h-[1px] bg-white/20 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <div className="absolute w-4 h-[1.5px] bg-white/30 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="range"
                     min={-12}
@@ -247,7 +247,7 @@ export const EqualizerModal: React.FC = () => {
                     step={1}
                     value={gain}
                     onChange={(e) => setEqGain(idx, parseFloat(e.target.value))}
-                    className="w-32 h-6 -rotate-90 appearance-none bg-transparent cursor-pointer"
+                    className="eq-slider w-32 h-6 -rotate-90 cursor-pointer"
                   />
                 </div>
 

@@ -60,6 +60,7 @@ describe('Auth System & Background Tab Playback Persistence', () => {
       expect(state.isAuthenticated).toBe(false);
       expect(state.user).toBeNull();
       expect(state.isAccountMenuOpen).toBe(false);
+      expect(state.isAuthModalOpen).toBe(true);
 
       const saved = JSON.parse(localStorage.getItem('spotibai_auth_user_v1') || '{}');
       expect(saved.isAuthenticated).toBe(false);
@@ -147,6 +148,52 @@ describe('Auth System & Background Tab Playback Persistence', () => {
       document.dispatchEvent(new Event('visibilitychange'));
 
       expect(resumeSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('3. 10-Band Equalizer & Dynamic Spectrum Visualizer', () => {
+    it('setEqBandGain persists gain into audioEngine.eqGains and clamps within [-12, 12]', () => {
+      audioEngine.setEqBandGain(0, 8);
+      expect(audioEngine.eqGains[0]).toBe(8);
+
+      // Clamping test
+      audioEngine.setEqBandGain(1, 15);
+      expect(audioEngine.eqGains[1]).toBe(12);
+
+      audioEngine.setEqBandGain(2, -20);
+      expect(audioEngine.eqGains[2]).toBe(-12);
+    });
+
+    it('applyPreset maps all 10 frequency band gains accurately', () => {
+      const bassPreset = {
+        id: 'bass_test',
+        name: 'Bass Test',
+        gains: [6, 5, 4, 2, 0, 0, 0, 0, 0, 0],
+      };
+      audioEngine.applyPreset(bassPreset);
+
+      expect(audioEngine.eqGains.slice(0, 4)).toEqual([6, 5, 4, 2]);
+      expect(audioEngine.eqGains.slice(4)).toEqual([0, 0, 0, 0, 0, 0]);
+    });
+
+    it('getVisualizerData provides active non-zero spectrum and waveform when music is playing', () => {
+      usePlayerStore.setState({
+        isPlaying: true,
+        currentTrack: { id: 'test_track', title: 'Test', artist: 'Artist', audioUrl: 'youtube:123', duration: 180 },
+        volume: 0.8,
+      });
+
+      const data = audioEngine.getVisualizerData();
+      expect(data.frequency.length).toBe(64);
+      expect(data.waveform.length).toBe(64);
+
+      // When playing, frequency bars must contain non-zero energy
+      const hasEnergy = data.frequency.some((val) => val > 0);
+      expect(hasEnergy).toBe(true);
+
+      // Waveform must oscillate around 128
+      const hasWaveOscillation = data.waveform.some((val) => val !== 128);
+      expect(hasWaveOscillation).toBe(true);
     });
   });
 });

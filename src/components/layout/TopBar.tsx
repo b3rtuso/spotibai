@@ -20,7 +20,7 @@ export const TopBar: React.FC = () => {
   const canGoForward = viewHistoryIndex < viewHistory.length - 1;
 
   return (
-    <header className="h-14 sm:h-16 px-4 md:px-8 flex items-center justify-between z-10 select-none bg-black/40 backdrop-blur-md border-b border-white/5 sticky top-0 flex-shrink-0">
+    <header className="h-14 sm:h-16 px-4 md:px-8 flex items-center justify-between z-40 select-none bg-black/40 backdrop-blur-md border-b border-white/5 sticky top-0 flex-shrink-0">
       {/* Mobile Brand (visible only on < md) */}
       <div 
         onClick={() => setActiveView('home')} 

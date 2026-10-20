@@ -343,11 +343,25 @@ export class YouTubeEngine {
     }
   }
 
+  private rawVolume = 1.0;
+  private eqScale = 1.0;
+
   public setVolume(volume: number) {
+    this.rawVolume = Math.max(0, Math.min(1, Number.isFinite(volume) ? volume : 0.8));
+    this.applyEffectiveVolume();
+  }
+
+  public setEqScale(scale: number) {
+    this.eqScale = Math.max(0.2, Math.min(2.0, scale));
+    this.applyEffectiveVolume();
+  }
+
+  private applyEffectiveVolume() {
     try {
       if (this.player && typeof this.player.setVolume === 'function') {
         if (typeof this.player.unMute === 'function') this.player.unMute();
-        this.player.setVolume(Math.round(volume * 100));
+        const effective = Math.round(Math.min(100, Math.max(0, this.rawVolume * this.eqScale * 100)));
+        this.player.setVolume(effective);
       }
     } catch (err) {
       console.warn('Error setting volume:', err);

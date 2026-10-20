@@ -885,3 +885,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 }));
+
+if (typeof window !== 'undefined') {
+  (window as any).__spotibai_playerStore = usePlayerStore;
+}

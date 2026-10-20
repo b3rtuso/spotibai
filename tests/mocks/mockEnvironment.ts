@@ -108,9 +108,15 @@ export class MockBiquadFilterNode extends MockAudioNode {
 
 export class MockAnalyserNode extends MockAudioNode {
   public fftSize = 128;
+  public frequencyBinCount = 64;
   public smoothingTimeConstant = 0.8;
   public getByteFrequencyData(array: Uint8Array) {
     array.fill(128);
+  }
+  public getByteTimeDomainData(array: Uint8Array) {
+    for (let i = 0; i < array.length; i++) {
+      array[i] = 128 + Math.round(Math.sin(i) * 30);
+    }
   }
 }
 

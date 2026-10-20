@@ -77,11 +77,17 @@ export const AccountDropdown: React.FC = () => {
       {/* Logout Action Button */}
       <div className="pt-1">
         <button
-          onClick={() => {
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             logout();
             closeAccountMenu();
           }}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-white/5 hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-neutral-200 hover:text-red-400 text-xs font-semibold transition-all duration-150 cursor-pointer active:scale-[0.98]"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-neutral-200 hover:text-red-400 text-xs font-semibold transition-all duration-150 cursor-pointer active:scale-[0.98]"
         >
           <LogOut className="w-4 h-4" />
           <span>Log out</span>

@@ -75,11 +75,51 @@ input[type="range"]:active::-webkit-slider-thumb {
 }
 
 /* Equalizer Sliders */
+.eq-slider {
+  -webkit-appearance: none;
+  background: transparent;
+}
+
 .eq-slider::-webkit-slider-runnable-track {
-  height: 140px;
-  width: 6px;
+  height: 4px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.eq-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: #1DB954;
+  margin-top: -5px;
+  opacity: 1 !important;
+  box-shadow: 0 0 10px rgba(29, 185, 84, 0.8), 0 2px 4px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.eq-slider:hover::-webkit-slider-thumb,
+.eq-slider:active::-webkit-slider-thumb {
+  background: #1ed760;
+  transform: scale(1.25);
+}
+
+.eq-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.eq-slider::-moz-range-thumb {
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: #1DB954;
+  border: none;
+  opacity: 1 !important;
+  box-shadow: 0 0 10px rgba(29, 185, 84, 0.8);
+  cursor: pointer;
 }
 
 /* Custom Text Gradient and Blurs */

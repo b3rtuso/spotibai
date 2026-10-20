@@ -1,4 +1,5 @@
 import { EqualizerPreset, Track } from '../../types';
+import { youTubeEngine } from '../youtube/YouTubeEngine';
 
 export const EQ_FREQUENCIES = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
@@ -29,6 +30,7 @@ export class AudioEngine {
   private gainNodeB: GainNode | null = null;
 
   private eqFilters: BiquadFilterNode[] = [];
+  public eqGains: number[] = new Array(10).fill(0);
   private vocalFilter: BiquadFilterNode | null = null;
   private isVocalMuted = false;
   private masterGain: GainNode | null = null;
@@ -292,7 +294,7 @@ export class AudioEngine {
           filter.Q.value = 1.4;
         }
         filter.frequency.value = freq;
-        filter.gain.value = 0;
+        filter.gain.value = this.eqGains[idx] || 0;
         return filter;
       });
 
@@ -657,9 +659,28 @@ export class AudioEngine {
   }
 
   public setEqBandGain(bandIndex: number, gainDb: number) {
+    const clampedGain = Math.max(-12, Math.min(12, gainDb));
+    this.eqGains[bandIndex] = clampedGain;
+
+    if (!this.isInitialized) {
+      this.initAudioContext();
+    }
+
     if (this.eqFilters[bandIndex] && this.ctx) {
-      const clampedGain = Math.max(-12, Math.min(12, gainDb));
-      this.eqFilters[bandIndex].gain.setValueAtTime(clampedGain, this.ctx.currentTime);
+      try {
+        this.eqFilters[bandIndex].gain.setValueAtTime(clampedGain, this.ctx.currentTime);
+      } catch {
+        this.eqFilters[bandIndex].gain.value = clampedGain;
+      }
+    }
+
+    // Adapt YouTube volume scale based on overall EQ boost/cut
+    try {
+      const avgGain = this.eqGains.reduce((a, b) => a + b, 0) / 10;
+      const eqScale = Math.pow(10, avgGain / 40);
+      youTubeEngine.setEqScale(eqScale);
+    } catch {
+      // ignore
     }
   }
 
@@ -669,17 +690,83 @@ export class AudioEngine {
     });
   }
 
-  public getVisualizerData(): { frequency: Uint8Array; waveform: Uint8Array } {
-    if (!this.analyser) {
-      return {
-        frequency: new Uint8Array(64).fill(0),
-        waveform: new Uint8Array(64).fill(128),
-      };
+  private isAnyAudioPlaying(): boolean {
+    const active = this.currentAudioIndex === 0 ? this.audioA : this.audioB;
+    if (!active.paused && active.currentTime > 0) return true;
+    if (this.isStemModeActive && !this.stemInstrumentalAudio.paused) return true;
+    if (typeof window !== 'undefined') {
+      try {
+        const ps = (window as any).__spotibai_playerStore?.getState?.();
+        if (ps && ps.isPlaying) return true;
+        const raw = localStorage.getItem('spotibai_playback_session_v1');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.isPlaying) return true;
+        }
+      } catch {
+        // ignore
+      }
     }
-    const freqData = new Uint8Array(this.analyser.frequencyBinCount);
-    const waveData = new Uint8Array(this.analyser.frequencyBinCount);
-    this.analyser.getByteFrequencyData(freqData);
-    this.analyser.getByteTimeDomainData(waveData);
+    return false;
+  }
+
+  public getVisualizerData(): { frequency: Uint8Array; waveform: Uint8Array } {
+    let hasSignal = false;
+    let freqData = new Uint8Array(64).fill(0);
+    let waveData = new Uint8Array(64).fill(128);
+
+    if (this.analyser) {
+      const binCount = this.analyser.frequencyBinCount || 64;
+      freqData = new Uint8Array(binCount);
+      waveData = new Uint8Array(binCount);
+      if (typeof this.analyser.getByteFrequencyData === 'function') {
+        this.analyser.getByteFrequencyData(freqData);
+      }
+      if (typeof this.analyser.getByteTimeDomainData === 'function') {
+        this.analyser.getByteTimeDomainData(waveData);
+      }
+      for (let i = 0; i < freqData.length; i++) {
+        if (freqData[i] > 0) {
+          hasSignal = true;
+          break;
+        }
+      }
+    }
+
+    if (hasSignal) {
+      return { frequency: freqData, waveform: waveData };
+    }
+
+    // Dynamic real-time visualizer synthesis for YouTube streams and smooth active playback
+    const isPlaying = this.isAnyAudioPlaying();
+    if (isPlaying) {
+      const now = performance.now() / 1000;
+      const synthFreq = new Uint8Array(64);
+      const synthWave = new Uint8Array(64);
+      const beatPulse = Math.pow(Math.max(0, Math.sin(now * 3.14 * 2)), 2);
+
+      for (let i = 0; i < 64; i++) {
+        const eqIdx = Math.min(9, Math.floor((i / 64) * 10));
+        const eqDb = this.eqGains[eqIdx] || 0;
+        const eqMultiplier = Math.pow(10, eqDb / 24);
+
+        let energy = 0;
+        if (i < 12) {
+          energy = 125 + 90 * beatPulse + Math.sin(now * 8 + i * 0.4) * 20;
+        } else if (i < 38) {
+          energy = 85 + 50 * Math.sin(now * 13 + i * 0.5) + 25 * Math.cos(now * 6);
+        } else {
+          energy = 55 + 40 * Math.cos(now * 21 + i * 0.7) + 20 * Math.sin(now * 10);
+        }
+
+        synthFreq[i] = Math.round(Math.min(255, Math.max(5, energy * this.volume * eqMultiplier)));
+        const osc = Math.sin(now * 19 + i * 0.35) * 40 + Math.cos(now * 8 + i * 0.2) * 30 * beatPulse;
+        synthWave[i] = Math.round(Math.min(255, Math.max(0, 128 + osc * this.volume * eqMultiplier)));
+      }
+
+      return { frequency: synthFreq, waveform: synthWave };
+    }
+
     return { frequency: freqData, waveform: waveData };
   }
 
