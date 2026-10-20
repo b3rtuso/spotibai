@@ -145,10 +145,10 @@ export class YouTubeEngine {
       return this.videoCache.get(normalized)!;
     }
 
-    // 1. Primary: Local Vite dev proxy / YouTube internal search
+    // 1. Primary: Local Vite dev proxy / Vercel Serverless API search
     try {
       const res = await fetch(`/api/yt-search?q=${encodeURIComponent(query)}`, {
-        signal: AbortSignal.timeout(4000),
+        signal: AbortSignal.timeout(5000),
       });
       if (res.ok) {
         const data = await res.json();
@@ -161,13 +161,12 @@ export class YouTubeEngine {
       // fallback
     }
 
-    // 2. Secondary: Public Invidious instances
+    // 2. Secondary: Public Invidious instances via CORS proxy to avoid browser CORS blocks
     for (const inst of INVIDIOUS_INSTANCES) {
       try {
-        const res = await fetch(
-          `${inst}/api/v1/search?q=${encodeURIComponent(query)}&type=video`,
-          { signal: AbortSignal.timeout(3000) }
-        );
+        const targetUrl = `${inst}/api/v1/search?q=${encodeURIComponent(query)}&type=video`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(3500) });
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data[0] && data[0].videoId) {

@@ -18,7 +18,10 @@ function youtubeResolverPlugin() {
 
           const response = await fetch('https://www.youtube.com/youtubei/v1/search', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            },
             body: JSON.stringify({
               context: {
                 client: {
@@ -32,20 +35,43 @@ function youtubeResolverPlugin() {
             }),
           });
 
-          if (!response.ok) {
-            res.statusCode = response.status;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: 'YouTube search failed' }));
-            return;
+          if (response.ok) {
+            const data = await response.json();
+            const str = JSON.stringify(data);
+            const match = str.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+            if (match && match[1]) {
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ videoId: match[1] }));
+              return;
+            }
           }
 
-          const data = await response.json();
-          const str = JSON.stringify(data);
-          const match = str.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-          const videoId = match ? match[1] : null;
+          // Fallback to Invidious server-side
+          const INVIDIOUS = [
+            'https://invidious.f5.si',
+            'https://invidious.nerdvpn.de',
+            'https://invidious.private.coffee',
+            'https://iv.nboeck.de',
+          ];
+          for (const inst of INVIDIOUS) {
+            try {
+              const invRes = await fetch(`${inst}/api/v1/search?q=${encodeURIComponent(query)}&type=video`, {
+                signal: AbortSignal.timeout(3000),
+              });
+              if (invRes.ok) {
+                const invData = await invRes.json();
+                if (Array.isArray(invData) && invData[0]?.videoId) {
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ videoId: invData[0].videoId }));
+                  return;
+                }
+              }
+            } catch {}
+          }
 
+          res.statusCode = 404;
           res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ videoId }));
+          res.end(JSON.stringify({ videoId: null }));
         } catch (err: any) {
           res.statusCode = 500;
           res.setHeader('Content-Type', 'application/json');
