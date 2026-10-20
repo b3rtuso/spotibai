@@ -201,9 +201,9 @@ export const FullscreenNowPlaying: React.FC = () => {
           >
             <ChevronDown className="w-6 h-6" />
           </button>
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-spotify-green/10 border border-spotify-green/20">
-            <Mic2 className="w-3.5 h-3.5 text-spotify-green animate-pulse" />
-            <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-spotify-green">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20">
+            <Mic2 className="w-3.5 h-3.5 text-white" />
+            <span className="text-xs sm:text-sm font-black tracking-wider uppercase text-white">
               Lyrics
             </span>
           </div>
@@ -297,7 +297,7 @@ export const FullscreenNowPlaying: React.FC = () => {
         >
           {lyricsLoading ? (
             <div className="my-auto flex flex-col items-center justify-center gap-2 py-12 text-neutral-400">
-              <div className="w-7 h-7 border-2 border-spotify-green border-t-transparent rounded-full animate-spin" />
+              <div className="w-7 h-7 border-2 border-white border-t-transparent rounded-full animate-spin" />
               <span className="text-xs font-semibold">Loading synchronized lyrics...</span>
             </div>
           ) : lyrics.length === 0 ? (
@@ -316,15 +316,12 @@ export const FullscreenNowPlaying: React.FC = () => {
                   key={`mobile-${line.timeMs}-${idx}`}
                   ref={isActive ? mobileActiveLineRef : null}
                   onClick={() => seek(line.timeMs / 1000)}
-                  className={`cursor-pointer transition-all duration-300 py-1 rounded-lg ${
+                  className={`cursor-pointer transition-all duration-200 py-1.5 rounded-lg ${
                     isActive
-                      ? 'text-white text-2xl sm:text-3xl font-black scale-[1.02] origin-left flex items-center gap-2'
-                      : 'text-neutral-400/80 hover:text-white text-base sm:text-lg font-bold opacity-60 hover:opacity-100'
+                      ? 'text-white text-2xl sm:text-3xl font-black scale-[1.02] origin-left'
+                      : 'text-white/40 hover:text-white/80 text-base sm:text-lg font-bold'
                   }`}
                 >
-                  {isActive && (
-                    <span className="w-2 h-2 rounded-full bg-spotify-green shadow-[0_0_8px_#1DB954] flex-shrink-0" />
-                  )}
                   {isActive && line.words && line.words.length > 0 ? (
                     <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                       {line.words.map((word, wIdx) => {
@@ -334,8 +331,8 @@ export const FullscreenNowPlaying: React.FC = () => {
                             key={wIdx}
                             className={`transition-all duration-150 ${
                               isWordActive
-                                ? 'text-white font-black drop-shadow-[0_0_12px_rgba(255,255,255,0.9)] scale-105'
-                                : 'text-neutral-400 font-bold opacity-70'
+                                ? 'text-white font-black'
+                                : 'text-white/40 font-bold'
                             }`}
                           >
                             {word.text}
@@ -425,7 +422,7 @@ export const FullscreenNowPlaying: React.FC = () => {
         >
           {lyricsLoading ? (
             <div className="my-auto flex flex-col items-center gap-2 text-neutral-400 w-full py-12">
-              <div className="w-8 h-8 border-2 border-spotify-green border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
               <span className="text-sm font-semibold">Loading synchronized lyrics...</span>
             </div>
           ) : lyrics.length === 0 ? (
@@ -444,10 +441,10 @@ export const FullscreenNowPlaying: React.FC = () => {
                   key={`desktop-${line.timeMs}-${idx}`}
                   ref={isActive ? desktopActiveLineRef : null}
                   onClick={() => seek(line.timeMs / 1000)}
-                  className={`cursor-pointer transition-all duration-300 py-1 max-w-xl ${
+                  className={`cursor-pointer transition-all duration-200 py-2 max-w-xl ${
                     isActive
                       ? 'text-white text-3xl xl:text-4xl font-black scale-105 origin-left'
-                      : 'text-neutral-500 hover:text-neutral-300 text-xl xl:text-2xl font-bold opacity-60 hover:opacity-100'
+                      : 'text-white/40 hover:text-white/80 text-xl xl:text-2xl font-bold'
                   }`}
                 >
                   {isActive && line.words && line.words.length > 0 ? (
@@ -459,8 +456,8 @@ export const FullscreenNowPlaying: React.FC = () => {
                             key={wIdx}
                             className={`transition-all duration-150 ${
                               isWordActive
-                                ? 'text-white font-black drop-shadow-[0_0_14px_rgba(255,255,255,0.95)]'
-                                : 'text-neutral-400 font-bold opacity-70'
+                                ? 'text-white font-black'
+                                : 'text-white/40 font-bold'
                             }`}
                           >
                             {word.text}
