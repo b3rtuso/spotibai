@@ -55,72 +55,65 @@ export const KaraokeVocalSlider: React.FC<KaraokeVocalSliderProps> = ({
     );
   }
 
-  // Expanded Card for Fullscreen Now Playing left panel
+  // Minimized Compact Bar for Fullscreen Now Playing left panel
   return (
     <div
-      className={`flex flex-col gap-3 p-4 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-xl shadow-2xl ${className}`}
+      className={`flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-md shadow-md gap-3 ${className}`}
     >
-      <div className="flex items-center justify-between w-full">
-        <div className="flex items-center gap-3">
-          <div
-            className={`p-2.5 rounded-xl transition-all ${
-              isKaraokeMode
-                ? 'bg-spotify-green text-black shadow-[0_0_16px_rgba(29,185,84,0.4)]'
-                : 'bg-white/10 text-neutral-400'
-            }`}
-          >
-            {isKaraokeMode ? (
-              <Music2 className="w-5 h-5 text-black" />
-            ) : (
-              <Mic2 className="w-5 h-5 text-white" />
-            )}
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-white tracking-wide">
-                Karaoke Mode
-              </span>
-              <span
-                className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                  isKaraokeMode
-                    ? 'bg-spotify-green text-black'
-                    : 'bg-white/10 text-neutral-400'
-                }`}
-              >
-                {isKaraokeMode ? 'Instruments Only' : 'Original Track'}
-              </span>
-            </div>
-            <span className="text-xs text-neutral-400 mt-0.5">
-              {isKaraokeMode
-                ? 'Singer muted • Playing rhythm, beat & instruments'
-                : 'Normal playback • Singer & instruments playing'}
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div
+          className={`p-1.5 rounded-lg flex-shrink-0 transition-all ${
+            isKaraokeMode
+              ? 'bg-spotify-green text-black'
+              : 'bg-white/10 text-neutral-300'
+          }`}
+        >
+          {isKaraokeMode ? (
+            <Music2 className="w-4 h-4 text-black" />
+          ) : (
+            <Mic2 className="w-4 h-4 text-white" />
+          )}
+        </div>
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold text-white tracking-wide truncate">
+              Karaoke Mode
             </span>
-            {karaokeStatusText && isKaraokeMode && (
-              <span className="text-[11px] text-spotify-green font-semibold mt-0.5 truncate max-w-xs animate-pulse">
-                {karaokeStatusText}
-              </span>
-            )}
+            <span
+              className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                isKaraokeMode
+                  ? 'bg-spotify-green text-black'
+                  : 'bg-white/10 text-neutral-400'
+              }`}
+            >
+              {isKaraokeMode ? 'Instruments Only' : 'Original Track'}
+            </span>
           </div>
+          {karaokeStatusText && isKaraokeMode && (
+            <span className="text-[10px] text-spotify-green font-semibold truncate animate-pulse">
+              {karaokeStatusText}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Main Single-Click Toggle Button */}
+      {/* Single-Click Toggle Button */}
       <button
         onClick={toggleKaraokeMode}
-        className={`w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer ${
+        className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 flex-shrink-0 shadow cursor-pointer active:scale-95 ${
           isKaraokeMode
-            ? 'bg-spotify-green text-black hover:bg-spotify-green/90 shadow-[0_0_14px_rgba(29,185,84,0.4)] active:scale-98'
-            : 'bg-white/10 hover:bg-white/15 text-white border border-white/10 active:scale-98'
+            ? 'bg-spotify-green text-black hover:bg-spotify-green/90 shadow-[0_0_10px_rgba(29,185,84,0.4)]'
+            : 'bg-white/10 hover:bg-white/15 text-white border border-white/10'
         }`}
       >
         {isKaraokeMode ? (
           <>
-            <VolumeX className="w-4 h-4 text-black" />
+            <VolumeX className="w-3.5 h-3.5 text-black" />
             <span>Singer Muted (Tap to Restore Vocals)</span>
           </>
         ) : (
           <>
-            <Mic2 className="w-4 h-4 text-spotify-green" />
+            <Mic2 className="w-3.5 h-3.5 text-spotify-green" />
             <span>Mute Singer & Play Instruments</span>
           </>
         )}

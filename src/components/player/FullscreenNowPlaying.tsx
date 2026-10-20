@@ -409,8 +409,8 @@ export const FullscreenNowPlaying: React.FC = () => {
             </button>
           </div>
 
-          {/* Desktop Apple Music Sing Karaoke Vocal Slider */}
-          <div className="w-full mt-6 pt-4 border-t border-white/10">
+          {/* Desktop Apple Music Sing Karaoke Control */}
+          <div className="w-full mt-4 pt-3 border-t border-white/10">
             <KaraokeVocalSlider compact={false} />
           </div>
         </div>
