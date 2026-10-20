@@ -73,10 +73,10 @@ export class AudioEngine {
     this.setupStemElement(this.stemInstrumentalAudio, true);
     this.setupStemElement(this.stemVocalsAudio, false);
 
-    // Auto-resume suspended AudioContext when tab becomes active again
+    // Auto-resume suspended AudioContext on tab visibility change or background switch
     if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
       document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && this.ctx && this.ctx.state === 'suspended') {
+        if (this.ctx && this.ctx.state === 'suspended') {
           this.ctx.resume().catch(() => {});
         }
       });
@@ -259,6 +259,17 @@ export class AudioEngine {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       this.ctx = new AudioCtx();
+
+      if (typeof this.ctx.addEventListener === 'function') {
+        this.ctx.addEventListener('statechange', () => {
+          if (this.ctx && this.ctx.state === 'suspended') {
+            const activeAudio = this.currentAudioIndex === 0 ? this.audioA : this.audioB;
+            if (!activeAudio.paused || this.isStemModeActive) {
+              this.ctx.resume().catch(() => {});
+            }
+          }
+        });
+      }
 
       // Master Gain
       this.masterGain = this.ctx.createGain();

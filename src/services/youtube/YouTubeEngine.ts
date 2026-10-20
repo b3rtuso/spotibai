@@ -20,6 +20,7 @@ export class YouTubeEngine {
   private pendingVideoId: string | null = null;
   public currentVideoId: string | null = null;
   private videoCache = new Map<string, string>();
+  private isPlayingDesired = false;
 
   public onTimeUpdate?: (currentTime: number, duration: number) => void;
   public onPlayStateChange?: (isPlaying: boolean) => void;
@@ -32,6 +33,15 @@ export class YouTubeEngine {
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden && (!this.isMounted || !this.player)) {
           this.mountPlayer('spotibai-yt-player');
+        }
+        if (this.isPlayingDesired && this.player && typeof this.player.playVideo === 'function') {
+          setTimeout(() => {
+            if (this.isPlayingDesired && this.player && typeof this.player.playVideo === 'function') {
+              try {
+                this.player.playVideo();
+              } catch {}
+            }
+          }, 50);
         }
       });
     }
@@ -114,12 +124,27 @@ export class YouTubeEngine {
             const state = event.data;
             // 1 = PLAYING, 2 = PAUSED, 0 = ENDED
             if (state === 1) {
+              this.isPlayingDesired = true;
               this.startTimeTracking();
               if (this.onPlayStateChange) this.onPlayStateChange(true);
             } else if (state === 2) {
+              // If the browser backgrounded the tab or throttled iframe execution while playback was active:
+              if (this.isPlayingDesired && typeof document !== 'undefined' && document.hidden) {
+                // Attempt immediate resume and do NOT broadcast false to playerStore
+                setTimeout(() => {
+                  if (this.isPlayingDesired && this.player && typeof this.player.playVideo === 'function') {
+                    try {
+                      this.player.playVideo();
+                    } catch {}
+                  }
+                }, 80);
+                return;
+              }
+              this.isPlayingDesired = false;
               this.stopTimeTracking();
               if (this.onPlayStateChange) this.onPlayStateChange(false);
             } else if (state === 0) {
+              this.isPlayingDesired = false;
               this.stopTimeTracking();
               if (this.onPlayStateChange) this.onPlayStateChange(false);
               if (this.onTrackEnded) this.onTrackEnded();
@@ -238,6 +263,7 @@ export class YouTubeEngine {
 
   public loadVideoById(videoId: string, startTime = 0) {
     this.currentVideoId = videoId;
+    this.isPlayingDesired = true;
     if (!this.player || typeof this.player.loadVideoById !== 'function') {
       this.pendingVideoId = videoId;
       if (!this.isMounted && typeof document !== 'undefined') {
@@ -263,6 +289,7 @@ export class YouTubeEngine {
   }
 
   public play() {
+    this.isPlayingDesired = true;
     try {
       if (this.player && typeof this.player.playVideo === 'function') {
         if (typeof this.player.unMute === 'function') this.player.unMute();
@@ -275,6 +302,7 @@ export class YouTubeEngine {
   }
 
   public pause() {
+    this.isPlayingDesired = false;
     try {
       if (this.player && typeof this.player.pauseVideo === 'function') {
         this.player.pauseVideo();

@@ -17,6 +17,7 @@ import { ImportModal } from '../modals/ImportModal';
 import { SpotifyImportModal } from '../modals/SpotifyImportModal';
 import { EditPlaylistModal } from '../modals/EditPlaylistModal';
 import { ShortcutsModal } from '../modals/ShortcutsModal';
+import { AuthModal } from '../modals/AuthModal';
 import { FullscreenNowPlaying } from '../player/FullscreenNowPlaying';
 import { YouTubePlayerContainer } from '../player/YouTubePlayerContainer';
 import { useUiStore } from '../../store/uiStore';
@@ -148,6 +149,7 @@ export const AppLayout: React.FC = () => {
       <EditPlaylistModal />
       <ShortcutsModal />
       <FullscreenNowPlaying />
+      <AuthModal />
     </div>
   );
 };

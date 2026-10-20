@@ -231,6 +231,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       const { currentTrack } = get();
       if (!isYouTubeTrack(currentTrack)) {
         set({ isPlaying });
+        if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+        }
       }
     };
 
@@ -259,6 +262,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       const { currentTrack } = get();
       if (isYouTubeTrack(currentTrack)) {
         set({ isPlaying });
+        if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+        }
       }
     };
 
@@ -286,6 +292,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       onPrev: () => get().previousTrack(),
       onSeek: (seconds) => get().seek(seconds),
     });
+
+    // 5. Global tab visibility listener to keep audio playing across tab switches
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+      document.addEventListener('visibilitychange', () => {
+        const { isPlaying, currentTrack } = get();
+        if (isPlaying && currentTrack) {
+          if (isYouTubeTrack(currentTrack)) {
+            youTubeEngine.play();
+          } else {
+            audioEngine.resumeContext().catch(() => {});
+          }
+        }
+      });
+    }
 
     // 5. Browser refresh / unload sync
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
@@ -377,6 +397,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
               track.youtubeId = vid;
             }
           }
+        }
+
+        if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: track.title,
+            artist: track.artist,
+            album: track.album || 'Spotibai',
+            artwork: [
+              { src: track.artworkUrl || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=512', sizes: '512x512', type: 'image/jpeg' },
+              { src: track.artworkUrl || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=256', sizes: '256x256', type: 'image/jpeg' },
+            ],
+          });
+          navigator.mediaSession.playbackState = 'playing';
         }
 
         // Instant background preloading for adjacent tracks (0ms switching)
