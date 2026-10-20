@@ -28,6 +28,13 @@ export class YouTubeEngine {
 
   constructor() {
     this.initApi();
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && (!this.isMounted || !this.player)) {
+          this.mountPlayer('spotibai-yt-player');
+        }
+      });
+    }
   }
 
   private initApi() {

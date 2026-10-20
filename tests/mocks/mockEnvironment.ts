@@ -280,7 +280,22 @@ export function installGlobalBrowserMocks() {
     clientHeight: 768,
   };
 
+  const docListeners: Record<string, Function[]> = {};
   g.document = {
+    addEventListener: (event: string, cb: Function) => {
+      if (!docListeners[event]) docListeners[event] = [];
+      docListeners[event].push(cb);
+    },
+    removeEventListener: (event: string, cb: Function) => {
+      if (!docListeners[event]) return;
+      docListeners[event] = docListeners[event].filter((l) => l !== cb);
+    },
+    dispatchEvent: (event: any) => {
+      const type = typeof event === 'string' ? event : event?.type;
+      const listeners = docListeners[type] || [];
+      for (const cb of listeners) cb(event);
+      return true;
+    },
     documentElement: {
       clientWidth: 1024,
       clientHeight: 768,

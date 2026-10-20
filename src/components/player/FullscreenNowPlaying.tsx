@@ -67,9 +67,12 @@ export const FullscreenNowPlaying: React.FC = () => {
 
   const [lyrics, setLyrics] = useState<LyricsLine[]>([]);
   const [lyricsLoading, setLyricsLoading] = useState(false);
-  const activeLineRef = useRef<HTMLDivElement | null>(null);
+  const mobileActiveLineRef = useRef<HTMLDivElement | null>(null);
+  const desktopActiveLineRef = useRef<HTMLDivElement | null>(null);
   const lyricsContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileLyricsContainerRef = useRef<HTMLDivElement | null>(null);
+  const [isUserBrowsingMobile, setIsUserBrowsingMobile] = useState(false);
+  const userScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isVisible = (isFullscreenNowPlaying || isLyricsOpen) && Boolean(currentTrack);
 
@@ -113,45 +116,78 @@ export const FullscreenNowPlaying: React.FC = () => {
     }
   }
 
+  // Calculate and scroll active lyric smoothly to center
+  const scrollContainerTo = (container: HTMLElement | null, element: HTMLElement | null) => {
+    if (!container || !element) return;
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+    const targetScroll = relativeTop - container.clientHeight / 2 + element.clientHeight / 2;
+    container.scrollTo({
+      top: Math.max(0, targetScroll),
+      behavior: 'smooth',
+    });
+  };
+
+  // Detect user touch or mouse wheel scrolling on mobile to pause auto-scroll
+  useEffect(() => {
+    const el = mobileLyricsContainerRef.current;
+    if (!el) return;
+
+    const onUserScroll = () => {
+      setIsUserBrowsingMobile(true);
+      if (userScrollTimeoutRef.current) {
+        clearTimeout(userScrollTimeoutRef.current);
+      }
+      userScrollTimeoutRef.current = setTimeout(() => {
+        setIsUserBrowsingMobile(false);
+        userScrollTimeoutRef.current = null;
+      }, 3500);
+    };
+
+    el.addEventListener('touchstart', onUserScroll, { passive: true });
+    el.addEventListener('touchmove', onUserScroll, { passive: true });
+    el.addEventListener('wheel', onUserScroll, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onUserScroll);
+      el.removeEventListener('touchmove', onUserScroll);
+      el.removeEventListener('wheel', onUserScroll);
+      if (userScrollTimeoutRef.current) {
+        clearTimeout(userScrollTimeoutRef.current);
+        userScrollTimeoutRef.current = null;
+      }
+    };
+  }, [isVisible]);
+
   // Smoothly auto-scroll active lyric to center
   useEffect(() => {
-    const activeLine = activeLineRef.current;
-    if (!activeLine) return;
-
-    // Desktop container
-    const container = lyricsContainerRef.current;
-    if (container) {
-      const targetScroll = activeLine.offsetTop - container.clientHeight / 2 + activeLine.clientHeight / 2;
-      container.scrollTo({
-        top: Math.max(0, targetScroll),
-        behavior: 'smooth',
-      });
+    // Desktop container: auto-scroll to desktop active line
+    if (lyricsContainerRef.current && desktopActiveLineRef.current) {
+      scrollContainerTo(lyricsContainerRef.current, desktopActiveLineRef.current);
     }
 
-    // Mobile container
-    const mobileContainer = mobileLyricsContainerRef.current;
-    if (mobileContainer) {
-      const targetScroll = activeLine.offsetTop - mobileContainer.clientHeight / 2 + activeLine.clientHeight / 2;
-      mobileContainer.scrollTo({
-        top: Math.max(0, targetScroll),
-        behavior: 'smooth',
-      });
+    // Mobile container: only auto-scroll if user is not currently browsing/scrolling
+    if (!isUserBrowsingMobile && mobileLyricsContainerRef.current && mobileActiveLineRef.current) {
+      scrollContainerTo(mobileLyricsContainerRef.current, mobileActiveLineRef.current);
     }
-  }, [activeLyricIdx]);
+  }, [activeLyricIdx, isUserBrowsingMobile]);
 
   if (!isVisible || !currentTrack) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between select-none overflow-hidden h-[100dvh] max-h-[100dvh] animate-in fade-in duration-300 text-white">
+    <div className="fixed inset-0 z-50 bg-[#0c0c0c] flex flex-col justify-between select-none overflow-hidden h-[100dvh] max-h-[100dvh] animate-in fade-in duration-300 text-white">
       {/* Background Ambient Glow & Blur */}
-      <div
-        className="absolute inset-0 bg-cover bg-center filter blur-[120px] opacity-25 pointer-events-none scale-150 transition-all duration-1000"
-        style={{ backgroundImage: `url(${currentTrack.artworkUrl})` }}
-      />
+      {currentTrack.artworkUrl && (
+        <div
+          className="absolute inset-0 bg-cover bg-center filter blur-[120px] opacity-25 pointer-events-none scale-150 transition-all duration-1000"
+          style={{ backgroundImage: `url(${currentTrack.artworkUrl})` }}
+        />
+      )}
       <div 
         className="absolute inset-0 opacity-40 pointer-events-none transition-all duration-1000"
         style={{
-          background: `radial-gradient(circle at 30% 40%, ${ambientColor} 0%, transparent 70%)`
+          background: `radial-gradient(circle at 30% 40%, ${ambientColor || '#1e2832'} 0%, transparent 70%)`
         }}
       />
 
@@ -278,7 +314,7 @@ export const FullscreenNowPlaying: React.FC = () => {
               return (
                 <div
                   key={`mobile-${line.timeMs}-${idx}`}
-                  ref={isActive ? activeLineRef : null}
+                  ref={isActive ? mobileActiveLineRef : null}
                   onClick={() => seek(line.timeMs / 1000)}
                   className={`cursor-pointer transition-all duration-300 py-1 rounded-lg ${
                     isActive
@@ -313,6 +349,27 @@ export const FullscreenNowPlaying: React.FC = () => {
                 </div>
               );
             })
+          )}
+
+          {/* Floating Re-sync Pill when user has manually scrolled mobile lyrics */}
+          {isUserBrowsingMobile && lyrics.length > 0 && (
+            <div className="sticky bottom-2 z-20 flex justify-center w-full pointer-events-none pb-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsUserBrowsingMobile(false);
+                  if (userScrollTimeoutRef.current) {
+                    clearTimeout(userScrollTimeoutRef.current);
+                    userScrollTimeoutRef.current = null;
+                  }
+                  scrollContainerTo(mobileLyricsContainerRef.current, mobileActiveLineRef.current);
+                }}
+                className="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-spotify-green text-black font-bold text-xs shadow-xl hover:scale-105 active:scale-95 transition-transform"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Sync with music</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -385,7 +442,7 @@ export const FullscreenNowPlaying: React.FC = () => {
               return (
                 <div
                   key={`desktop-${line.timeMs}-${idx}`}
-                  ref={isActive ? activeLineRef : null}
+                  ref={isActive ? desktopActiveLineRef : null}
                   onClick={() => seek(line.timeMs / 1000)}
                   className={`cursor-pointer transition-all duration-300 py-1 max-w-xl ${
                     isActive

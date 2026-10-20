@@ -72,6 +72,15 @@ export class AudioEngine {
     this.stemVocalsAudio.volume = 1.0;
     this.setupStemElement(this.stemInstrumentalAudio, true);
     this.setupStemElement(this.stemVocalsAudio, false);
+
+    // Auto-resume suspended AudioContext when tab becomes active again
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+      });
+    }
   }
 
   private cancelCrossfade() {

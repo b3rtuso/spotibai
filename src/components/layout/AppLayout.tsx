@@ -148,7 +148,6 @@ export const AppLayout: React.FC = () => {
       <EditPlaylistModal />
       <ShortcutsModal />
       <FullscreenNowPlaying />
-      <YouTubePlayerContainer />
     </div>
   );
 };
